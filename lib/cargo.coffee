@@ -22,6 +22,42 @@ module.exports = class CargoWrapper extends events.EventEmitter
       killTree(@cargo.pid)
       @cargo = null
 
+  build: ->
+
+    flags = ['run', getFileWithoutExtension(@context.root)]
+
+    if @options
+      Array::push.apply flags, @options.split ' '
+
+    opts =
+      cwd: @context.root
+      env:
+        PATH: @context.path
+        HOME: process.env.HOME
+
+    @resetStatistics()
+    @cargo = spawn @context.cargoBinaryPath, flags, opts
+
+    if @textOnly
+      @cargo.stdout.on 'data', (data) => @emit 'output', data.toString()
+      @cargo.stderr.on 'data', (data) => @emit 'output', data.toString()
+    else
+      stream = ansi(chunked: false)
+      @cargo.stdout.pipe stream
+      @cargo.stderr.pipe stream
+      stream.on 'data', (data) =>
+        @parseStatistics data
+        @emit 'output', clickablePaths.link data.toString()
+
+    @cargo.on 'error', (err) =>
+      @emit 'error', err
+
+    @cargo.on 'exit', (code) =>
+      if code is 0
+        @emit 'success', @stats
+      else
+        @emit 'failure', @stats
+
   run: ->
 
     flags = ['test', getFileWithoutExtension(@context.test)]

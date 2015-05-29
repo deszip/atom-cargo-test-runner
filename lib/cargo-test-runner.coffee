@@ -35,6 +35,7 @@ module.exports =
     @subscriptions.add atom.commands.add 'atom-workspace', 'core:cancel', => @close()
     @subscriptions.add atom.commands.add 'atom-workspace', 'core:close', => @close()
 
+    @subscriptions.add atom.commands.add 'atom-workspace', 'cargo-test-runner:build': => @run()
     @subscriptions.add atom.commands.add 'atom-workspace', 'cargo-test-runner:run': => @run()
     @subscriptions.add atom.commands.add 'atom-workspace', 'cargo-test-runner:run-previous', => @runPrevious()
 
@@ -52,6 +53,11 @@ module.exports =
     if cargo then cargo.stop()
     resultView.detach()
 
+  build: ->
+    editor   = atom.workspace.getActivePaneItem()
+    currentContext = context.find editor
+    @build()
+
   run: ->
     editor   = atom.workspace.getActivePaneItem()
     currentContext = context.find editor
@@ -62,6 +68,32 @@ module.exports =
       @execute()
     else
       @displayError 'No previous test run'
+
+
+  build: ->
+
+    resultView.reset()
+    if not resultView.hasParent()
+      atom.workspace.addBottomPanel item:resultView
+
+    if atom.config.get 'cargo-test-runner.showContextInformation'
+      resultView.addLine "Cargo binary:   #{currentContext.cargoBinaryPath}\n"
+      resultView.addLine "Root folder:    #{currentContext.root}\n"
+      resultView.addLine "Test file:      #{currentContext.test}\n"
+      resultView.addLine "PATH:           #{currentContext.path}\n"
+
+    editor = atom.workspace.getActivePaneItem()
+    cargo  = new Cargo(currentContext)
+
+    cargo.on 'success', -> resultView.success()
+    cargo.on 'failure', -> resultView.failure()
+    cargo.on 'updateSummary', (stats) -> resultView.updateSummary(stats)
+    cargo.on 'output', (text) -> resultView.addLine(text)
+    cargo.on 'error', (err) ->
+      resultView.addLine('Failed to run cargo\n' + err.message)
+      resultView.failure()
+
+    cargo.build()
 
 
   execute: ->
@@ -87,7 +119,7 @@ module.exports =
       resultView.addLine('Failed to run cargo\n' + err.message)
       resultView.failure()
 
-    cargo.run()
+    cargo.build()
 
 
   displayError: (message) ->
