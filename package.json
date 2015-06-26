@@ -3,7 +3,7 @@
   "main": "./lib/cargo-test-runner",
   "version": "0.0.4",
   "description": "Run Cargo tests from within Atom",
-  "repository": "https://github.com/nguyenchr/atom-cargo-test-runner",
+  "repository": "https://github.com/deszip/atom-cargo-test-runner",
   "license": "MIT",
   "activationCommands": {
     "atom-workspace": [
